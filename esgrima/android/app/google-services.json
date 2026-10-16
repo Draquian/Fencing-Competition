@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "591061535786",
+    "project_id": "fencing-competition-b08c0",
+    "storage_bucket": "fencing-competition-b08c0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:591061535786:android:202d969a72e51bf2c3c753",
+        "android_client_info": {
+          "package_name": "com.example.esgrima"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF9s7mbQsBzVZ8N32Uy696StQqUheqhTc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
