@@ -52,7 +52,7 @@ class EsgrimaApp extends StatelessWidget {
   const EsgrimaApp({super.key, this.error});
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Competición de esgrima',
+        title: 'Sable olimpico (Sabado)',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
             colorSchemeSeed: const Color(0xFFC0392B), useMaterial3: true),
@@ -147,6 +147,8 @@ class Home extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: comp,
         builder: (c, _) {
+          // OJO: sin `const`, para que Flutter reconstruya estas pantallas cuando
+          // llegan cambios de Firestore (un widget const idéntico no se redibuja).
           if (comp.code == null) return Landing();
           if (!comp.ready)
             return const Scaffold(
@@ -886,6 +888,95 @@ class PoulesResultPage extends StatelessWidget {
       });
 }
 
+class PodiumPage extends StatelessWidget {
+  const PodiumPage({super.key});
+
+  Widget bar(String medal, String? id, int place, double h, Color col) =>
+      Expanded(
+          child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+        Text(medal, style: const TextStyle(fontSize: 32)),
+        Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            child: Text(nm(id),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.bold))),
+        Container(
+            height: h,
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            alignment: Alignment.topCenter,
+            padding: const EdgeInsets.only(top: 8),
+            decoration: BoxDecoration(
+                color: col,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(8))),
+            child: Text('$place',
+                style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white))),
+      ]));
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+      listenable: comp,
+      builder: (c, _) {
+        final R = (log(comp.sizeB) / ln2).round();
+        final first = comp.winner(R - 1, 0), second = comp.loser(R - 1, 0);
+        // Los dos perdedores de las semifinales comparten el tercer puesto
+        final thirds = R >= 2
+            ? [comp.loser(R - 2, 0), comp.loser(R - 2, 1)]
+                .whereType<String>()
+                .toList()
+            : <String>[];
+        return Scaffold(
+            appBar: AppBar(title: const Text('Podio')),
+            body: SafeArea(
+                child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(children: [
+                      Expanded(
+                          child: first == null
+                              ? const Center(
+                                  child:
+                                      Text('La final aún no tiene resultado.'))
+                              : Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: SizedBox(
+                                      height: 300,
+                                      child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            bar('🥈', second, 2, 110,
+                                                Colors.blueGrey),
+                                            bar('🥇', first, 1, 150,
+                                                Colors.amber.shade700),
+                                            for (final t in thirds)
+                                              bar('🥉', t, 3, 80,
+                                                  Colors.brown.shade400),
+                                          ])))),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                              onPressed: () async {
+                                if (comp.isOrg &&
+                                    !await ask(c,
+                                        '¿Terminar la competición? Volverás a la pantalla de inicio. Para volver a verla, entra con el código ${comp.code}.'))
+                                  return;
+                                await comp.leave();
+                                if (c.mounted)
+                                  Navigator.of(c).popUntil((r) => r.isFirst);
+                              },
+                              child: Text(comp.isOrg
+                                  ? 'Terminar competición'
+                                  : 'Salir'))),
+                    ]))));
+      });
+}
+
 class BracketView extends StatefulWidget {
   const BracketView({super.key});
   @override
@@ -1084,6 +1175,14 @@ class _BracketState extends State<BracketView> {
                             ])),
                   ])),
           ])),
+      if (ch != null) ...[
+        const SizedBox(height: 12),
+        FilledButton.icon(
+            onPressed: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const PodiumPage())),
+            icon: const Icon(Icons.emoji_events),
+            label: const Text('Podio')),
+      ],
       const SizedBox(height: 8),
       const Text(
           'Toca un combate para anotar el resultado. Los BYE pasan directamente a la siguiente ronda.'),

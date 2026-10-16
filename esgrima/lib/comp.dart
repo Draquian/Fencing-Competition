@@ -414,6 +414,13 @@ class Comp extends ChangeNotifier {
     return a > b ? p[0] : p[1];
   }
 
+  /// Perdedor de un combate de eliminatoria (null si hay BYE o aún no está decidido).
+  String? loser(int r, int i) {
+    final p = parts(r, i), w = winner(r, i);
+    if (w == null || p.contains('BYE')) return null;
+    return p[0] == w ? p[1] : p[0];
+  }
+
   void reset() {
     phase = 'setup';
     poules = [];
