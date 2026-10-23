@@ -1,33 +1,46 @@
 import 'dart:math';
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'comp.dart';
+import 'theme.dart';
 import 'firebase_options.dart';
 
 Future<bool> ask(BuildContext c, String msg) async =>
     await showDialog<bool>(
         context: c,
-        builder: (_) => AlertDialog(content: Text(msg), actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(c, false),
-                  child: const Text('Cancelar')),
-              FilledButton(
-                  onPressed: () => Navigator.pop(c, true),
-                  child: const Text('Aceptar')),
-            ])) ??
+        builder: (_) => AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.transparent,
+                shape: dialogShape,
+                content: Text(msg),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c, false),
+                      child: const Text('Cancelar')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(c, true),
+                      child: const Text('Aceptar')),
+                ])) ??
     false;
 
 Widget card(String t, Widget w) => Card(
     margin: const EdgeInsets.only(bottom: 12),
+    elevation: 0,
+    color: Colors.white,
+    surfaceTintColor: Colors.transparent,
+    shape: cardShape,
     child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(t,
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.green)),
           const SizedBox(height: 8),
           w
         ])));
@@ -52,17 +65,13 @@ class EsgrimaApp extends StatelessWidget {
   const EsgrimaApp({super.key, this.error});
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Sable olimpico (Sabado)',
+        title: 'Competición de esgrima',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-            colorSchemeSeed: const Color(0xFFC0392B), useMaterial3: true),
-        darkTheme: ThemeData(
-            colorSchemeSeed: const Color(0xFFC0392B),
-            brightness: Brightness.dark,
-            useMaterial3: true),
+        theme: buildTheme(),
+        themeMode: ThemeMode.light,
         home: error != null
             ? Scaffold(
-                appBar: AppBar(title: const Text('Error de Firebase')),
+                appBar: appBar('Error de Firebase'),
                 body: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
@@ -114,7 +123,7 @@ class _SplashState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xFF111418),
+        backgroundColor: AppColors.greenDark,
         body: Center(
             child: FadeTransition(
                 opacity: fade,
@@ -127,11 +136,11 @@ class _SplashState extends State<SplashScreen>
                           errorBuilder: (_, __, ___) => const Icon(
                               Icons.sports_martial_arts,
                               size: 110,
-                              color: Colors.white)),
+                              color: AppColors.goldLight)),
                       const SizedBox(height: 20),
                       const Text('Sopre Games',
                           style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.goldLight,
                               fontSize: 28,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 1.2)),
@@ -160,9 +169,19 @@ class Home extends StatelessWidget {
             _ => BracketView(),
           };
           return Scaffold(
-            appBar: AppBar(title: Text('🤺 ${comp.code}'), actions: [
+            appBar: appBar('🤺 ${comp.code}', actions: [
               Chip(
-                  label: Text(comp.isOrg ? 'Organizador' : 'Participante'),
+                  label: Text(comp.isOrg ? 'ORGANIZADOR' : 'PARTICIPANTE',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                          color: AppColors.green)),
+                  backgroundColor: AppColors.mint,
+                  side: BorderSide.none,
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4)),
                   visualDensity: VisualDensity.compact),
               IconButton(
                   tooltip: 'Copiar código',
@@ -198,6 +217,29 @@ class Home extends StatelessWidget {
       );
 }
 
+String authMsg(Object e) {
+  if (e is FirebaseAuthException) {
+    switch (e.code) {
+      case 'invalid-credential':
+      case 'wrong-password':
+      case 'user-not-found':
+        return 'Correo o contraseña incorrectos.';
+      case 'email-already-in-use':
+        return 'Ese correo ya tiene una cuenta. Pulsa «Iniciar sesión».';
+      case 'weak-password':
+        return 'La contraseña debe tener al menos 6 caracteres.';
+      case 'invalid-email':
+        return 'El correo no es válido.';
+      case 'network-request-failed':
+        return 'Sin conexión. Comprueba tu internet.';
+      case 'operation-not-allowed':
+        return 'Falta activar el acceso por correo/contraseña en Firebase.';
+    }
+    return e.message ?? e.code;
+  }
+  return '$e';
+}
+
 class Landing extends StatefulWidget {
   const Landing({super.key});
   @override
@@ -215,47 +257,9 @@ class _LandingState extends State<Landing> {
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+            .showSnackBar(SnackBar(content: Text(authMsg(e))));
     }
     if (mounted) setState(() => busy = false);
-  }
-
-  Future<void> orgDialog() async {
-    final em = TextEditingController(), pw = TextEditingController();
-    await showDialog(
-        context: context,
-        builder: (d) => AlertDialog(
-              title: const Text('Cuenta de organizador'),
-              content: Column(mainAxisSize: MainAxisSize.min, children: [
-                TextField(
-                    controller: em,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Email')),
-                TextField(
-                    controller: pw,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                        labelText: 'Contraseña (mín. 6 caracteres)')),
-              ]),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(d),
-                    child: const Text('Cancelar')),
-                TextButton(
-                    onPressed: () {
-                      Navigator.pop(d);
-                      run(() => comp.signInOrg(em.text.trim(), pw.text,
-                          register: true));
-                    },
-                    child: const Text('Crear cuenta')),
-                FilledButton(
-                    onPressed: () {
-                      Navigator.pop(d);
-                      run(() => comp.signInOrg(em.text.trim(), pw.text));
-                    },
-                    child: const Text('Entrar')),
-              ],
-            ));
   }
 
   Future<void> join(String code) => run(() async {
@@ -265,62 +269,275 @@ class _LandingState extends State<Landing> {
         }
       });
 
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('🤺 Competición de esgrima')),
-        body: Center(
-            child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: ListView(
-                    padding: const EdgeInsets.all(24),
-                    shrinkWrap: true,
-                    children: [
-                      if (comp.lastCode != null) ...[
-                        FilledButton.tonal(
-                            onPressed: busy ? null : () => join(comp.lastCode!),
-                            child: Text('Continuar con ${comp.lastCode}')),
-                        const SizedBox(height: 16),
-                      ],
-                      if (comp.isLoggedOrg)
-                        Row(children: [
-                          Expanded(
-                              child: Text('Organizador: ${comp.email}',
-                                  overflow: TextOverflow.ellipsis)),
-                          TextButton(
-                              onPressed:
-                                  busy ? null : () => run(comp.signOutOrg),
-                              child: const Text('Cerrar sesión')),
-                        ])
-                      else
-                        OutlinedButton(
-                            onPressed: busy ? null : orgDialog,
-                            child:
-                                const Text('Soy organizador: iniciar sesión')),
-                      const SizedBox(height: 8),
-                      FilledButton(
-                          onPressed: busy || !comp.isLoggedOrg
-                              ? null
-                              : () => run(comp.create),
-                          child: const Text('Crear competición')),
-                      const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Divider()),
-                      TextField(
-                          controller: cc,
-                          textCapitalization: TextCapitalization.characters,
-                          maxLength: 5,
-                          decoration: const InputDecoration(
-                              labelText: 'Código de la competición',
-                              border: OutlineInputBorder())),
-                      OutlinedButton(
-                          onPressed: busy ? null : () => join(cc.text),
-                          child: const Text('Unirme como participante')),
-                      if (busy)
-                        const Padding(
-                            padding: EdgeInsets.only(top: 16),
-                            child: LinearProgressIndicator()),
-                    ]))),
+  /// Menú que sube desde abajo y se cierra hacia abajo
+  void openOrgSheet() => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+        builder: (_) => const OrgSheet(),
       );
+
+  /// Panel elevado: sombra ambiental verde, borde fino y franja de color arriba
+  Widget panel(Widget child, [Color accent = AppColors.green]) => Container(
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.hairStrong),
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x1F0F382C),
+                blurRadius: 32,
+                spreadRadius: -4,
+                offset: Offset(0, 12)),
+            BoxShadow(
+                color: Color(0x0A0F382C),
+                blurRadius: 12,
+                spreadRadius: -2,
+                offset: Offset(0, 4)),
+          ]),
+      child: ClipRRect(
+          borderRadius: BorderRadius.circular(11),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Container(height: 5, color: accent),
+            Padding(padding: const EdgeInsets.all(20), child: child),
+          ])));
+
+  Widget goldPanel(Widget child) => panel(child, AppColors.gold);
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = Theme.of(context).textTheme;
+    final desc = tt.bodyMedium?.copyWith(color: AppColors.muted);
+    return Container(
+        decoration: const BoxDecoration(
+            gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFE7F0EB), Color(0xFFD3DCD7)])),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: appBar('🤺 Competición de esgrima'),
+          body: Center(
+              child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: ListView(
+                      padding: const EdgeInsets.all(24),
+                      shrinkWrap: true,
+                      children: [
+                        if (comp.lastCode != null) ...[
+                          FilledButton.tonal(
+                              onPressed:
+                                  busy ? null : () => join(comp.lastCode!),
+                              child: Text('Continuar con ${comp.lastCode}')),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // ---------- Sección 1: participante ----------
+                        panel(Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                        color: AppColors.mint,
+                                        borderRadius: BorderRadius.circular(8)),
+                                    child: const Icon(Icons.groups_outlined,
+                                        color: AppColors.green)),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                    child: Text('Entrar como participante',
+                                        style: tt.titleMedium?.copyWith(
+                                            color: AppColors.green))),
+                              ]),
+                              const SizedBox(height: 8),
+                              Text(
+                                  'Introduce el código de 5 caracteres facilitado por la mesa técnica del torneo',
+                                  style: desc),
+                              const SizedBox(height: 16),
+                              TextField(
+                                  controller: cc,
+                                  textCapitalization:
+                                      TextCapitalization.characters,
+                                  maxLength: 5,
+                                  decoration:
+                                      deco(label: 'Código de la competición')),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton(
+                                      onPressed:
+                                          busy ? null : () => join(cc.text),
+                                      child: const Text(
+                                          'Entrar como participante'))),
+                            ])),
+
+                        // ---------- Separación ----------
+                        const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Row(children: [
+                              Expanded(child: Divider()),
+                              Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text('O',
+                                      style: TextStyle(
+                                          color: AppColors.muted,
+                                          fontWeight: FontWeight.w600))),
+                              Expanded(child: Divider()),
+                            ])),
+
+                        // ---------- Sección 2: organizador ----------
+                        goldPanel(Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Entrar como organizador',
+                                  style: tt.titleMedium
+                                      ?.copyWith(color: AppColors.green)),
+                              const SizedBox(height: 8),
+                              if (!comp.isLoggedOrg) ...[
+                                Text(
+                                    'Esta opción es solo para la persona que dirige el torneo: la mesa técnica o el director del torneo.',
+                                    style: desc),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton(
+                                        onPressed: busy ? null : openOrgSheet,
+                                        child: const Text(
+                                            'Iniciar sesión como organizador'))),
+                              ] else ...[
+                                Text('Sesión iniciada como ${comp.email}',
+                                    style: desc),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                    width: double.infinity,
+                                    child: FilledButton(
+                                        onPressed: busy
+                                            ? null
+                                            : () => run(comp.create),
+                                        child:
+                                            const Text('Crear competición'))),
+                                Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                        onPressed: busy
+                                            ? null
+                                            : () => run(comp.signOutOrg),
+                                        child: const Text('Cerrar sesión'))),
+                              ],
+                            ])),
+                        if (busy)
+                          const Padding(
+                              padding: EdgeInsets.only(top: 16),
+                              child: LinearProgressIndicator()),
+                      ]))),
+        ));
+  }
+}
+
+class OrgSheet extends StatefulWidget {
+  const OrgSheet({super.key});
+  @override
+  State<OrgSheet> createState() => _OrgSheetState();
+}
+
+class _OrgSheetState extends State<OrgSheet> {
+  final em = TextEditingController(), pw = TextEditingController();
+  bool loading = false;
+  String? err;
+
+  @override
+  void dispose() {
+    em.dispose();
+    pw.dispose();
+    super.dispose();
+  }
+
+  Future<void> go(bool register) async {
+    final e = em.text.trim();
+    if (e.isEmpty || pw.text.isEmpty) {
+      setState(() => err = 'Introduce el correo y la contraseña.');
+      return;
+    }
+    setState(() {
+      loading = true;
+      err = null;
+    });
+    try {
+      await comp.signInOrg(e, pw.text, register: register);
+      if (mounted) Navigator.pop(context);
+    } catch (x) {
+      if (mounted)
+        setState(() {
+          loading = false;
+          err = authMsg(x);
+        });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+      padding: EdgeInsets.fromLTRB(
+          24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+            Text('Cuenta de organizador',
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(color: AppColors.green)),
+            const SizedBox(height: 4),
+            const Text('Gestión de poules, cuadros eliminatorios y pistas',
+                style: TextStyle(color: AppColors.muted)),
+            const SizedBox(height: 20),
+            TextField(
+                controller: em,
+                keyboardType: TextInputType.emailAddress,
+                decoration: deco(label: 'Correo electrónico')),
+            const SizedBox(height: 12),
+            TextField(
+                controller: pw,
+                obscureText: true,
+                decoration: deco(label: 'Contraseña'),
+                onSubmitted: (_) => go(false)),
+            if (err != null)
+              Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(err!,
+                      style: const TextStyle(
+                          color: AppColors.garnet, fontSize: 13))),
+            const SizedBox(height: 16),
+            SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                    onPressed: loading ? null : () => go(false),
+                    child: loading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Iniciar sesión',
+                            style: TextStyle(fontSize: 16)))),
+            const SizedBox(height: 8),
+            Row(children: [
+              TextButton(
+                  onPressed: loading ? null : () => Navigator.pop(context),
+                  child: const Text('Cancelar')),
+              const Spacer(),
+              OutlinedButton(
+                  onPressed: loading ? null : () => go(true),
+                  child: const Text('Crear cuenta')),
+            ]),
+          ])));
 }
 
 /* ===================== PARTE 1: PARTICIPANTES ===================== */
@@ -346,7 +563,7 @@ class _SetupState extends State<SetupView> {
   Widget build(BuildContext context) {
     final n = comp.players.length;
     if (!comp.isOrg) {
-      return ListView(padding: const EdgeInsets.all(12), children: [
+      return ListView(padding: const EdgeInsets.all(16), children: [
         card(
             'Participantes ($n)',
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -357,7 +574,7 @@ class _SetupState extends State<SetupView> {
       ]);
     }
     final k = n == 0 ? 0 : (n / comp.max).ceil();
-    return ListView(padding: const EdgeInsets.all(12), children: [
+    return ListView(padding: const EdgeInsets.all(16), children: [
       card(
           '1 · Participantes',
           Column(children: [
@@ -369,10 +586,7 @@ class _SetupState extends State<SetupView> {
                   child: TextField(
                       controller: nn,
                       textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                          hintText: 'Nombre',
-                          border: OutlineInputBorder(),
-                          isDense: true),
+                      decoration: deco(hint: 'Nombre'),
                       onSubmitted: (_) => add())),
               const SizedBox(width: 8),
               DropdownButton<int>(
@@ -408,51 +622,58 @@ class _SetupState extends State<SetupView> {
           ])),
       for (final p in comp.players)
         Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            elevation: 0,
+            color: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: cardShape,
             child: ExpansionTile(
-          key: PageStorageKey(p.id),
-          title: Text(p.name),
-          subtitle: Text(
-              'Nivel ${p.lvl} · No quiere: ${p.avoid.isEmpty ? 'nadie' : p.avoid.length}'),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          children: [
-            Row(children: [
-              const Text('Nivel'),
-              Expanded(
-                  child: Slider(
-                      value: p.lvl.toDouble(),
-                      min: 1,
-                      max: 10,
-                      divisions: 9,
-                      label: '${p.lvl}',
-                      onChanged: (v) {
-                        p.lvl = v.round();
-                        comp.refresh();
-                      },
-                      onChangeEnd: (_) => comp.save())),
-            ]),
-            if (comp.players.length > 1) ...[
-              const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('No quiere que le toque:')),
-              Wrap(spacing: 6, children: [
-                for (final o in comp.players.where((o) => o.id != p.id))
-                  FilterChip(
-                      label: Text(o.name),
-                      selected: p.avoid.contains(o.id),
-                      onSelected: (s) {
-                        s ? p.avoid.add(o.id) : p.avoid.remove(o.id);
-                        comp.save();
-                      }),
-              ]),
-            ],
-            Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                    onPressed: () => comp.delPlayer(p.id),
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Eliminar'))),
-          ],
-        )),
+              shape: const Border(),
+              collapsedShape: const Border(),
+              key: PageStorageKey(p.id),
+              title: Text(p.name),
+              subtitle: Text(
+                  'Nivel ${p.lvl} · No quiere: ${p.avoid.isEmpty ? 'nadie' : p.avoid.length}'),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              children: [
+                Row(children: [
+                  const Text('Nivel'),
+                  Expanded(
+                      child: Slider(
+                          value: p.lvl.toDouble(),
+                          min: 1,
+                          max: 10,
+                          divisions: 9,
+                          label: '${p.lvl}',
+                          onChanged: (v) {
+                            p.lvl = v.round();
+                            comp.refresh();
+                          },
+                          onChangeEnd: (_) => comp.save())),
+                ]),
+                if (comp.players.length > 1) ...[
+                  const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('No quiere que le toque:')),
+                  Wrap(spacing: 6, children: [
+                    for (final o in comp.players.where((o) => o.id != p.id))
+                      FilterChip(
+                          label: Text(o.name),
+                          selected: p.avoid.contains(o.id),
+                          onSelected: (s) {
+                            s ? p.avoid.add(o.id) : p.avoid.remove(o.id);
+                            comp.save();
+                          }),
+                  ]),
+                ],
+                Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                        onPressed: () => comp.delPlayer(p.id),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Eliminar'))),
+              ],
+            )),
       const SizedBox(height: 8),
       Text('$n tiradores → $k poule${k == 1 ? '' : 's'}',
           textAlign: TextAlign.center),
@@ -477,7 +698,7 @@ class PoulesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final multi = comp.poules.length > 1, org = comp.isOrg;
-    return ListView(padding: const EdgeInsets.all(12), children: [
+    return ListView(padding: const EdgeInsets.all(16), children: [
       card(
           '2 · Poules',
           Text(!org
@@ -506,7 +727,7 @@ class PoulesView extends StatelessWidget {
                         const Padding(
                             padding: EdgeInsets.only(left: 6),
                             child: Icon(Icons.warning_amber,
-                                size: 16, color: Colors.orange)),
+                                size: 16, color: AppColors.garnet)),
                     ]),
                     trailing: (multi && org)
                         ? PopupMenuButton<int>(
@@ -596,6 +817,10 @@ class _SDState extends State<ScoreDialog> {
   Widget build(BuildContext context) {
     final loser = w == null ? null : (w == widget.a ? widget.b : widget.a);
     return AlertDialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: dialogShape,
+      elevation: 8,
       title: Text('Combate a $target tocados'),
       content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -613,11 +838,14 @@ class _SDState extends State<ScoreDialog> {
                         : null,
                     icon: const Icon(Icons.remove_circle_outline)),
                 SizedBox(
-                    width: 32,
+                    width: 40,
                     child: Text('$target',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold))),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: tabular,
+                            color: AppColors.green))),
                 IconButton(
                     onPressed:
                         target < 15 ? () => setState(() => target++) : null,
@@ -642,11 +870,9 @@ class _SDState extends State<ScoreDialog> {
                     onPressed: lp > 0 ? () => setState(() => lp--) : null,
                     icon: const Icon(Icons.remove_circle_outline)),
                 SizedBox(
-                    width: 32,
+                    width: 64,
                     child: Text('$lp',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold))),
+                        textAlign: TextAlign.center, style: numericScore)),
                 IconButton(
                     onPressed:
                         lp < target - 1 ? () => setState(() => lp++) : null,
@@ -709,23 +935,48 @@ class PouleTables extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ids = comp.poules[pi], st = comp.stats(ids);
-    const bold = TextStyle(fontWeight: FontWeight.bold);
-    final sheet = DataTable(columnSpacing: 14, columns: [
-      const DataColumn(label: Text('Tirador')),
-      for (var i = 0; i < ids.length; i++) DataColumn(label: Text('${i + 1}')),
-      const DataColumn(label: Text('V')),
-    ], rows: [
-      for (var i = 0; i < ids.length; i++)
-        DataRow(cells: [
-          DataCell(Text('${i + 1}. ${nm(ids[i])}')),
-          for (final b in ids)
-            DataCell(ids[i] == b
-                ? Container(width: 22, height: 22, color: Colors.black12)
-                : Text(cell(ids[i], b),
-                    style: cell(ids[i], b) == 'V' ? bold : null)),
-          DataCell(Text('${st[ids[i]]!.v}', style: bold)),
-        ]),
-    ]);
+    const bold = TextStyle(fontWeight: FontWeight.w700, fontFeatures: tabular);
+    const vStyle = TextStyle(
+        fontWeight: FontWeight.w700,
+        color: AppColors.green,
+        fontFeatures: tabular);
+    const head = TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.48,
+        color: AppColors.green);
+    const data =
+        TextStyle(fontSize: 14, fontFeatures: tabular, color: AppColors.ink);
+    final headRow = WidgetStateProperty.all(AppColors.mint);
+    final sheet = DataTable(
+        columnSpacing: 14,
+        headingRowColor: headRow,
+        headingTextStyle: head,
+        dataTextStyle: data,
+        dividerThickness: 1,
+        columns: [
+          const DataColumn(label: Text('Tirador')),
+          for (var i = 0; i < ids.length; i++)
+            DataColumn(label: Text('${i + 1}')),
+          const DataColumn(label: Text('V')),
+        ],
+        rows: [
+          for (var i = 0; i < ids.length; i++)
+            DataRow(cells: [
+              DataCell(Text('${i + 1}. ${nm(ids[i])}')),
+              for (final b in ids)
+                DataCell(ids[i] == b
+                    ? Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                            color: AppColors.divider,
+                            borderRadius: BorderRadius.circular(4)))
+                    : Text(cell(ids[i], b),
+                        style: cell(ids[i], b) == 'V' ? vStyle : null)),
+              DataCell(Text('${st[ids[i]]!.v}', style: bold)),
+            ]),
+        ]);
     final cls = comp.rank(ids);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       card(
@@ -737,22 +988,35 @@ class PouleTables extends StatelessWidget {
             'Clasificación',
             SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: DataTable(columnSpacing: 16, columns: const [
-                  DataColumn(label: Text('Posición')),
-                  DataColumn(label: Text('Tirador')),
-                  DataColumn(label: Text('Victorias')),
-                  DataColumn(label: Text('Tocados dados')),
-                  DataColumn(label: Text('Tocados recibidos')),
-                ], rows: [
-                  for (final o in cls)
-                    DataRow(cells: [
-                      DataCell(Text('${o.pos}')),
-                      DataCell(Text(nm(o.id))),
-                      DataCell(Text('${o.v}')),
-                      DataCell(Text('${o.td}')),
-                      DataCell(Text('${o.tr}')),
-                    ])
-                ]))),
+                child: DataTable(
+                    columnSpacing: 16,
+                    headingRowColor: headRow,
+                    headingTextStyle: head,
+                    dataTextStyle: data,
+                    dividerThickness: 1,
+                    columns: const [
+                      DataColumn(label: Text('Posición')),
+                      DataColumn(label: Text('Tirador')),
+                      DataColumn(label: Text('Victorias')),
+                      DataColumn(label: Text('Tocados dados')),
+                      DataColumn(label: Text('Tocados recibidos')),
+                    ],
+                    rows: [
+                      for (final o in cls)
+                        DataRow(cells: [
+                          DataCell(Text('${o.pos}',
+                              style: o.pos == 1
+                                  ? const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.goldDeep,
+                                      fontFeatures: tabular)
+                                  : null)),
+                          DataCell(Text(nm(o.id))),
+                          DataCell(Text('${o.v}', style: vStyle)),
+                          DataCell(Text('${o.td}')),
+                          DataCell(Text('${o.tr}')),
+                        ])
+                    ]))),
     ]);
   }
 }
@@ -779,8 +1043,7 @@ class _PlayState extends State<PlayView> {
     final ids = comp.poules[cur], bouts = comp.order(ids);
     final done =
         bouts.where((b) => comp.res[comp.key(b[0], b[1])] != null).length;
-    final scheme = Theme.of(context).colorScheme;
-    return ListView(padding: const EdgeInsets.all(12), children: [
+    return ListView(padding: const EdgeInsets.all(16), children: [
       if (!comp.isOrg)
         card(
             '¿Quién eres?',
@@ -841,18 +1104,37 @@ class _PlayState extends State<PlayView> {
                 String t = 'Pendiente';
                 if (r != null)
                   t = '${r[a]! > r[b]! ? 'V' : r[a]} – ${r[b]! > r[a]! ? 'V' : r[b]}';
-                return ListTile(
-                  dense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 6),
-                  tileColor: mine ? scheme.primaryContainer : null,
-                  title: Text('${i + 1}. ${nm(a)} vs ${nm(b)}',
-                      style:
-                          TextStyle(fontWeight: mine ? FontWeight.bold : null)),
-                  trailing: Text(t,
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: r != null ? Colors.green : null)),
-                  onTap: () => editBout(c, a: a, b: b),
+                // Combate activo (el del participante): franja verde a la izquierda
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  decoration: BoxDecoration(
+                      color: mine ? AppColors.mint : null,
+                      border: mine
+                          ? const Border(
+                              left:
+                                  BorderSide(color: AppColors.green, width: 4))
+                          : null,
+                      borderRadius: BorderRadius.circular(4)),
+                  child: Material(
+                      type: MaterialType.transparency,
+                      child: ListTile(
+                        dense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 8),
+                        title: Text('${i + 1}. ${nm(a)} vs ${nm(b)}',
+                            style: TextStyle(
+                                fontWeight:
+                                    mine ? FontWeight.w700 : FontWeight.w500,
+                                fontSize: 13)),
+                        trailing: Text(t,
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontFeatures: tabular,
+                                color: r != null
+                                    ? AppColors.green
+                                    : AppColors.muted)),
+                        onTap: () => editBout(c, a: a, b: b),
+                      )),
                 );
               }),
           ])),
@@ -870,19 +1152,23 @@ class PoulesResultPage extends StatelessWidget {
       builder: (context, _) {
         final n = comp.poules.length;
         Widget page(int i) => ListView(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             children: [PouleTables(i, showClass: true)]);
         if (n == 1)
-          return Scaffold(
-              appBar: AppBar(title: const Text('Poule final')), body: page(0));
+          return Scaffold(appBar: appBar('Poule final'), body: page(0));
         return DefaultTabController(
             length: n,
             child: Scaffold(
-                appBar: AppBar(
-                    title: const Text('Poules finalizadas'),
-                    bottom: TabBar(isScrollable: true, tabs: [
-                      for (var i = 0; i < n; i++) Tab(text: 'Poule ${i + 1}')
-                    ])),
+                appBar: appBar('Poules finalizadas',
+                    bottom: TabBar(
+                        isScrollable: true,
+                        labelColor: AppColors.goldLight,
+                        unselectedLabelColor: Colors.white70,
+                        indicatorColor: AppColors.goldLight,
+                        tabs: [
+                          for (var i = 0; i < n; i++)
+                            Tab(text: 'Poule ${i + 1}')
+                        ])),
                 body: TabBarView(
                     children: [for (var i = 0; i < n; i++) page(i)])));
       });
@@ -901,7 +1187,10 @@ class PodiumPage extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold))),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.28,
+                    fontSize: 13))),
         Container(
             height: h,
             margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -912,10 +1201,11 @@ class PodiumPage extends StatelessWidget {
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(8))),
             child: Text('$place',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white))),
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: tabular,
+                    color: place == 1 ? AppColors.ink : Colors.white))),
       ]));
 
   @override
@@ -931,7 +1221,7 @@ class PodiumPage extends StatelessWidget {
                 .toList()
             : <String>[];
         return Scaffold(
-            appBar: AppBar(title: const Text('Podio')),
+            appBar: appBar('Podio'),
             body: SafeArea(
                 child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -950,12 +1240,12 @@ class PodiumPage extends StatelessWidget {
                                               CrossAxisAlignment.end,
                                           children: [
                                             bar('🥈', second, 2, 110,
-                                                Colors.blueGrey),
+                                                const Color(0xFF9AA5A0)),
                                             bar('🥇', first, 1, 150,
-                                                Colors.amber.shade700),
+                                                AppColors.gold),
                                             for (final t in thirds)
                                               bar('🥉', t, 3, 80,
-                                                  Colors.brown.shade400),
+                                                  const Color(0xFFA9774B)),
                                           ])))),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -997,51 +1287,68 @@ class _BracketState extends State<BracketView> {
 
   Widget seeding() {
     final g = comp.gRank(), s = comp.seeds, org = comp.isOrg;
-    return ListView(padding: const EdgeInsets.all(12), children: [
+    GStat st(int i) => g.firstWhere((e) => e.s.id == s[i]);
+    // Empate = mismas victorias y misma diferencia de tocados (dados − recibidos)
+    bool tied(int i, int j) =>
+        j >= 0 &&
+        j < s.length &&
+        st(i).s.v == st(j).s.v &&
+        st(i).s.td - st(i).s.tr == st(j).s.td - st(j).s.tr;
+    void swap(int i, int j) {
+      final t = s[i];
+      s[i] = s[j];
+      s[j] = t;
+      comp.save();
+    }
+
+    return ListView(padding: const EdgeInsets.all(16), children: [
       card(
           '4 · Clasificación general',
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(org
-                ? 'Por victorias, luego tocados dados − recibidos; en empate dentro de la misma poule, su posición. Los empates entre poules distintas (⚠) se ordenan a mano con las flechas.'
+                ? 'Ordenada por victorias y diferencia de tocados. Solo se pueden mover los tiradores empatados (⚠), y únicamente entre ellos. Si empatan dos de la misma poule, manda su clasificación de poule.'
                 : 'Esperando a que el organizador genere la tabla de eliminatorias…'),
             for (var i = 0; i < s.length; i++)
               Builder(builder: (c) {
-                final o = g.firstWhere((e) => e.s.id == s[i]);
-                final nx = i + 1 < s.length
-                    ? g.firstWhere((e) => e.s.id == s[i + 1])
-                    : null;
-                final tie = nx != null &&
-                    o.s.v == nx.s.v &&
-                    o.s.td - o.s.tr == nx.s.td - nx.s.tr &&
-                    o.pi != nx.pi;
+                final o = st(i);
+                final tiedPrev = tied(i, i - 1),
+                    tiedNext = tied(i, i + 1),
+                    isTied = tiedPrev || tiedNext;
+                // Solo se intercambian vecinos empatados de poules distintas (así no se rompe el orden dentro de una misma poule)
+                final canUp = tiedPrev && o.pi != st(i - 1).pi;
+                final canDown = tiedNext && o.pi != st(i + 1).pi;
                 final d = o.s.td - o.s.tr;
                 return ListTile(
                   dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('${i + 1}. ${nm(s[i])}'),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  tileColor: isTied ? AppColors.goldWash : null,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6)),
+                  leading: Container(
+                      width: 40,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                          color: AppColors.goldWash,
+                          border: Border.all(color: const Color(0x4DC59B27)),
+                          borderRadius: BorderRadius.circular(4)),
+                      child: Text('#${i + 1}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.goldDeep,
+                              fontFeatures: tabular))),
+                  title: Text(nm(s[i]),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: Text(
-                      '${o.s.v}V · ${d > 0 ? '+' : ''}$d · Poule ${o.pi + 1}${tie ? '  ⚠ empate con el siguiente' : ''}'),
-                  trailing: org
+                      '${o.s.v}V · ${d > 0 ? '+' : ''}$d · Poule ${o.pi + 1}${isTied ? '  ⚠ empatado' : ''}'),
+                  trailing: (org && (canUp || canDown))
                       ? Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(
-                              onPressed: i > 0
-                                  ? () {
-                                      final t = s[i];
-                                      s[i] = s[i - 1];
-                                      s[i - 1] = t;
-                                      comp.save();
-                                    }
-                                  : null,
+                              onPressed: canUp ? () => swap(i, i - 1) : null,
                               icon: const Icon(Icons.arrow_upward)),
                           IconButton(
-                              onPressed: i < s.length - 1
-                                  ? () {
-                                      final t = s[i];
-                                      s[i] = s[i + 1];
-                                      s[i + 1] = t;
-                                      comp.save();
-                                    }
-                                  : null,
+                              onPressed: canDown ? () => swap(i, i + 1) : null,
                               icon: const Icon(Icons.arrow_downward)),
                         ])
                       : null,
@@ -1089,40 +1396,56 @@ class _BracketState extends State<BracketView> {
     final res = comp.br['$r-$i'];
     final w = comp.winner(r, i);
     final mine = comp.me != null && p.contains(comp.me);
-    Widget line(String? x) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Row(children: [
-          Expanded(
-              child: Text(nm(x),
-                  overflow: TextOverflow.ellipsis,
+    Widget line(String? x) {
+      final win = w != null && w == x && !bye;
+      return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(children: [
+            Expanded(
+                child: Text(nm(x),
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: win ? FontWeight.w700 : FontWeight.w400,
+                        color: win
+                            ? AppColors.green
+                            : (w != null ? AppColors.muted : AppColors.ink)))),
+            if (res != null && x != null && x != 'BYE' && res[x] != null)
+              Text('${res[x]}',
                   style: TextStyle(
-                      fontWeight:
-                          w != null && w == x && !bye ? FontWeight.bold : null,
-                      color:
-                          w != null && w == x && !bye ? Colors.green : null))),
-          if (res != null && x != null && x != 'BYE' && res[x] != null)
-            Text('${res[x]}'),
-        ]));
+                      fontWeight: win ? FontWeight.w700 : FontWeight.w400,
+                      fontFeatures: tabular,
+                      color: win ? AppColors.goldDeep : AppColors.muted)),
+          ]));
+    }
+
     final canTap = !bye && p[0] != null && p[1] != null;
     return Opacity(
         opacity: bye ? .5 : 1,
         child: Card(
             margin: const EdgeInsets.symmetric(horizontal: 4),
-            shape: mine
-                ? RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                        color: Theme.of(context).colorScheme.primary, width: 2))
-                : null,
+            elevation: 0,
+            color: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: cardShape,
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
                 onTap: canTap
                     ? () => editBout(context, a: p[0]!, b: p[1]!, bkey: '$r-$i')
                     : null,
-                child: Column(children: [
-                  line(p[0]),
-                  const Divider(height: 1),
-                  line(p[1])
-                ]))));
+                // Combate activo: franja de 4 px en verde imperial
+                child: Container(
+                    decoration: mine
+                        ? const BoxDecoration(
+                            border: Border(
+                                left: BorderSide(
+                                    color: AppColors.green, width: 4)))
+                        : null,
+                    child: Column(children: [
+                      line(p[0]),
+                      const Divider(height: 1),
+                      line(p[1])
+                    ])))));
   }
 
   @override
@@ -1133,7 +1456,7 @@ class _BracketState extends State<BracketView> {
     final ch = comp.winner(R - 1, 0);
     void go(double to) => ctrl.animateTo(to,
         duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
-    return ListView(padding: const EdgeInsets.all(12), children: [
+    return ListView(padding: const EdgeInsets.all(16), children: [
       Wrap(spacing: 8, runSpacing: 8, children: [
         OutlinedButton.icon(
             onPressed: () => go(0),
@@ -1150,11 +1473,36 @@ class _BracketState extends State<BracketView> {
       ]),
       const SizedBox(height: 8),
       if (ch != null)
-        card(
-            '🏆 Campeón',
-            Text(nm(ch),
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold))),
+        Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            elevation: 0,
+            color: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: const BorderSide(color: Color(0x59C59B27))),
+            child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  const Text('🏆', style: TextStyle(fontSize: 32)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        const Text('CAMPEÓN',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.6,
+                                color: AppColors.goldDeep)),
+                        Text(nm(ch),
+                            style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.green)),
+                      ])),
+                ]))),
       SingleChildScrollView(
           controller: ctrl,
           scrollDirection: Axis.horizontal,
@@ -1178,6 +1526,9 @@ class _BracketState extends State<BracketView> {
       if (ch != null) ...[
         const SizedBox(height: 12),
         FilledButton.icon(
+            style: FilledButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: AppColors.ink),
             onPressed: () => Navigator.push(
                 context, MaterialPageRoute(builder: (_) => const PodiumPage())),
             icon: const Icon(Icons.emoji_events),

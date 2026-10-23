@@ -434,4 +434,4 @@ class Comp extends ChangeNotifier {
 
 final comp = Comp();
 String nm(String? id) =>
-    id == null ? '—' : (id == 'BYE' ? 'BYE' : (comp.P(id)?.name ?? '?'));
+    id == null ? '—' : (id == 'BYE' ? 'BYE' : (comp.P(id)?.name ?? '?').toUpperCase());
