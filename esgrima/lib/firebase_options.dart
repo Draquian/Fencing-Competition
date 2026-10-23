@@ -52,12 +52,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBF9s7mbQsBzVZ8N32Uy696StQqUheqhTc',
-    appId: '1:591061535786:android:202d969a72e51bf2c3c753',
+    appId: '1:591061535786:android:392803e702c5f201c3c753',
     messagingSenderId: '591061535786',
     projectId: 'fencing-competition-b08c0',
     storageBucket: 'fencing-competition-b08c0.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCJXVqPk7_eTNy9J3nxWVZrzp17qN0LbcM',
     appId: '1:591061535786:ios:f80795e6b091c22ac3c753',
@@ -66,7 +65,6 @@ class DefaultFirebaseOptions {
     storageBucket: 'fencing-competition-b08c0.firebasestorage.app',
     iosBundleId: 'com.example.esgrima',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCJXVqPk7_eTNy9J3nxWVZrzp17qN0LbcM',
     appId: '1:591061535786:ios:f80795e6b091c22ac3c753',

@@ -1,4 +1,4 @@
-package com.example.esgrima
+package com.sporegames.esgrima
 
 import io.flutter.embedding.android.FlutterActivity
 

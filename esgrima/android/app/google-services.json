@@ -23,6 +23,63 @@
           "other_platform_oauth_client": []
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:591061535786:android:392803e702c5f201c3c753",
+        "android_client_info": {
+          "package_name": "com.sporegames.esgrima"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF9s7mbQsBzVZ8N32Uy696StQqUheqhTc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:591061535786:android:e3e94bc1e8d29cf8c3c753",
+        "android_client_info": {
+          "package_name": "com.tuempresa.esgrima"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF9s7mbQsBzVZ8N32Uy696StQqUheqhTc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:591061535786:android:ccea410e0e64cc1bc3c753",
+        "android_client_info": {
+          "package_name": "fencing.competition.draquian"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF9s7mbQsBzVZ8N32Uy696StQqUheqhTc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"

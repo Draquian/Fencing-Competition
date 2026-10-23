@@ -138,7 +138,7 @@ class _SplashState extends State<SplashScreen>
                               size: 110,
                               color: AppColors.goldLight)),
                       const SizedBox(height: 20),
-                      const Text('Sopre Games',
+                      const Text('Spore Games',
                           style: TextStyle(
                               color: AppColors.goldLight,
                               fontSize: 28,
